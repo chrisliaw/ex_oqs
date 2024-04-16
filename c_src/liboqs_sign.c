@@ -35,6 +35,7 @@ static ERL_NIF_TERM generate_keypair(ErlNifEnv *env, int argc,
   ErlNifBinary privKey;
   OQS_STATUS rc;
   ERL_NIF_TERM fret;
+  OQS_SIG *sig = NULL;
 
   int rv = enif_get_atom_length(env, algo, &len, ERL_NIF_UTF8);
   // printf("rv 1 : %d\n", rv);
@@ -47,7 +48,7 @@ static ERL_NIF_TERM generate_keypair(ErlNifEnv *env, int argc,
   // printf("rv 2 : %d\n", rv);
   if (rv > 0) {
     printf("got algo : %s\n", name);
-    OQS_SIG *sig = OQS_SIG_new(name);
+    sig = OQS_SIG_new(name);
     if (sig == NULL) {
       printf("SIG null\n");
       fret = enif_make_tuple2(env, enif_make_atom(env, "error"),
@@ -70,15 +71,15 @@ static ERL_NIF_TERM generate_keypair(ErlNifEnv *env, int argc,
                          enif_make_tuple2(env, enif_make_binary(env, &pubKey),
                                           enif_make_binary(env, &privKey)));
 
-    printf("pubkey gen : ");
-    for (int i = 0; i < pubKey.size; i++)
-      printf("%02x", pubKey.data[i]);
-    printf("\n");
+    // printf("pubkey gen : ");
+    // for (int i = 0; i < pubKey.size; i++)
+    //   printf("%02x", pubKey.data[i]);
+    // printf("\n");
 
-    printf("privkey gen : ");
-    for (int i = 0; i < privKey.size; i++)
-      printf("%02x", privKey.data[i]);
-    printf("\n");
+    // printf("privkey gen : ");
+    // for (int i = 0; i < privKey.size; i++)
+    //   printf("%02x", privKey.data[i]);
+    // printf("\n");
 
     enif_release_binary(&pubKey);
     enif_release_binary(&privKey);
@@ -87,6 +88,9 @@ static ERL_NIF_TERM generate_keypair(ErlNifEnv *env, int argc,
 cleanup:
   if (name != NULL)
     enif_free(name);
+
+  if (sig != NULL)
+    OQS_SIG_free(sig);
 
   return fret;
 }
@@ -99,6 +103,7 @@ static ERL_NIF_TERM sign(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
 
   unsigned len = 0;
   char *name = NULL;
+  OQS_SIG *sig = NULL;
 
   ErlNifBinary dataBin;
   ErlNifBinary privKeyBin;
@@ -140,10 +145,10 @@ static ERL_NIF_TERM sign(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     goto cleanup;
   }
 
-  printf("privkey sign : ");
-  for (int i = 0; i < privKeyBin.size; i++)
-    printf("%02x", privKeyBin.data[i]);
-  printf("\n");
+  // printf("privkey sign : ");
+  // for (int i = 0; i < privKeyBin.size; i++)
+  //   printf("%02x", privKeyBin.data[i]);
+  // printf("\n");
 
   printf("Before getting atom length\n");
   rv = enif_get_atom_length(env, algo, &len, ERL_NIF_UTF8);
@@ -155,16 +160,16 @@ static ERL_NIF_TERM sign(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     goto cleanup;
 
   } else {
-    printf("got algo atom length : %d\n", len);
+    // printf("got algo atom length : %d\n", len);
     name = enif_alloc(sizeof(char) * len + 1);
     rv = enif_get_atom(env, algo, name, len + 1, ERL_NIF_UTF8);
   }
 
   if (rv > 0) {
-    printf("got algo : %s\n", name);
-    OQS_SIG *sig = OQS_SIG_new(name);
+    // printf("got algo : %s\n", name);
+    sig = OQS_SIG_new(name);
     if (sig == NULL) {
-      printf("SIG null\n");
+      // printf("SIG null\n");
       fret = enif_make_tuple2(env, enif_make_atom(env, "error"),
                               enif_make_atom(env, "SIG_null"));
       goto cleanup;
@@ -175,7 +180,7 @@ static ERL_NIF_TERM sign(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     rc = OQS_SIG_sign(sig, signature.data, &signature_length, dataBin.data,
                       dataBin.size, privKeyBin.data);
     if (rc != OQS_SUCCESS) {
-      printf("OQS signing error!\n");
+      // printf("OQS signing error!\n");
       fret = enif_make_tuple2(
           env, enif_make_atom(env, "error"),
           enif_make_tuple2(env, enif_make_atom(env, "signing_error"),
@@ -183,7 +188,7 @@ static ERL_NIF_TERM sign(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
       goto cleanup;
     }
 
-    printf("signature length : %lu\n", signature_length);
+    // printf("signature length : %lu\n", signature_length);
 
     fret = enif_make_tuple2(env, enif_make_atom(env, "ok"),
                             enif_make_binary(env, &signature));
@@ -196,6 +201,12 @@ cleanup:
   enif_release_binary(&signature);
   enif_release_binary(&dataBin);
   enif_release_binary(&privKeyBin);
+
+  if (name != NULL)
+    enif_free(name);
+
+  if (sig != NULL)
+    OQS_SIG_free(sig);
 
   return fret;
 }
@@ -210,6 +221,7 @@ static ERL_NIF_TERM verify(ErlNifEnv *env, int argc,
 
   unsigned len = 0;
   char *name = NULL;
+  OQS_SIG *sig = NULL;
 
   ErlNifBinary dataBin;
   ErlNifBinary pubKeyBin;
@@ -264,10 +276,10 @@ static ERL_NIF_TERM verify(ErlNifEnv *env, int argc,
     goto cleanup;
   }
 
-  printf("pubkey verify : ");
-  for (int i = 0; i < pubKeyBin.size; i++)
-    printf("%02x", pubKeyBin.data[i]);
-  printf("\n");
+  // printf("pubkey verify : ");
+  // for (int i = 0; i < pubKeyBin.size; i++)
+  //   printf("%02x", pubKeyBin.data[i]);
+  // printf("\n");
 
   rv = enif_get_atom_length(env, algo, &len, ERL_NIF_UTF8);
   if (rv) {
@@ -276,22 +288,22 @@ static ERL_NIF_TERM verify(ErlNifEnv *env, int argc,
   }
 
   if (rv > 0) {
-    printf("got algo : %s\n", name);
-    OQS_SIG *sig = OQS_SIG_new(name);
+    // printf("got algo : %s\n", name);
+    sig = OQS_SIG_new(name);
     if (sig == NULL) {
-      printf("SIG null\n");
+      // printf("SIG null\n");
       fret = enif_make_tuple2(env, enif_make_atom(env, "error"),
                               enif_make_atom(env, "SIG_null"));
       goto cleanup;
     }
 
-    printf("data size : %lu\n", dataBin.size);
-    printf("signature size : %lu\n", signBin.size);
+    // printf("data size : %lu\n", dataBin.size);
+    // printf("signature size : %lu\n", signBin.size);
 
     rc = OQS_SIG_verify(sig, dataBin.data, dataBin.size, signBin.data,
                         signBin.size, pubKeyBin.data);
     if (rc != OQS_SUCCESS) {
-      printf("OQS verification error!\n");
+      // printf("OQS verification error!\n");
       fret = enif_make_tuple2(
           env, enif_make_atom(env, "ok"),
           enif_make_tuple2(env, enif_make_atom(env, "verify_error"),
@@ -312,6 +324,12 @@ cleanup:
   enif_release_binary(&signBin);
   enif_release_binary(&dataBin);
   enif_release_binary(&pubKeyBin);
+
+  if (name != NULL)
+    enif_free(name);
+
+  if (sig != NULL)
+    OQS_SIG_free(sig);
 
   return fret;
 }
