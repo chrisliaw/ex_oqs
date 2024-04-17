@@ -18,7 +18,7 @@ defmodule ExOqsTest do
         :"KAZ-SIGN-3",
         :"KAZ-SIGN-5",
         :Dilithium2,
-        :Dilitium3,
+        :Dilithium3,
         :Dilithium5,
         :"Falcon-padded-512",
         :"Falcon-padded-1024"
@@ -105,6 +105,51 @@ defmodule ExOqsTest do
       vres2 = ExOqs.Liboqs.Sign.verify(sign, x, pubkey, "testing 123")
       IO.inspect(vres2)
       {:ok, {:verify_error, _}} = vres2
+    end)
+  end
+
+  test "all KEM algos" do
+    algo = ExOqs.Liboqs.KEM.supported_algo()
+    IO.inspect(algo)
+    assert(length(algo) > 0)
+
+    ralgo =
+      Enum.reject(algo, fn x ->
+        # those algos triggered BUS ERROR... too big?
+        Enum.member?(
+          [
+            :"Classic-McEliece-6688128",
+            :"Classic-McEliece-6688128f",
+            :"Classic-McEliece-6960119",
+            :"Classic-McEliece-6960119f",
+            :"Classic-McEliece-8192128",
+            :"Classic-McEliece-8192128f"
+          ],
+          x
+        )
+      end)
+
+    IO.puts("algo list : #{inspect(ralgo)}")
+
+    Enum.map(ralgo, fn x ->
+      IO.puts("testing KEM algo #{inspect(x)}")
+      res = ExOqs.Liboqs.KEM.generate_keypair(x)
+      IO.inspect(res)
+      {:ok, {pubkey, privkey}} = res
+      IO.puts("pubkey : #{inspect(pubkey)}")
+      IO.puts("privkey : #{inspect(privkey)}")
+
+      {:ok, {scipher, sk_s}} = sres = ExOqs.Liboqs.KEM.encaps(x, pubkey)
+      IO.inspect(sres)
+
+      {:ok, sk_r} = dres = ExOqs.Liboqs.KEM.decaps(x, scipher, privkey)
+      IO.inspect(dres)
+      assert(sk_r == sk_s)
+
+      scipherNot = :crypto.strong_rand_bytes(byte_size(scipher))
+      {:ok, sk_r_not} = dres2 = ExOqs.Liboqs.KEM.decaps(x, scipherNot, privkey)
+      IO.inspect(dres2)
+      assert(sk_r != sk_r_not)
     end)
   end
 end
